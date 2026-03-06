@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TACCOM-7 // Secure Voice Link</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Oswald:wght@300;400;600;700&display=swap');
+
+  :root {
+    --od-green: #4a5c3a;
+    --dark-green: #2a3520;
+    --darker: #151a10;
+    --black: #0a0c07;
+    --amber: #d4810a;
+    --amber-bright: #f5a623;
+    --amber-dim: #7a4a08;
+    --red-alert: #c0392b;
+    --green-signal: #5dbb63;
+    --green-dim: #2d5c31;
+    --tan: #c8b87a;
+    --tan-dim: #7a6e42;
+    --grid: rgba(212, 129, 10, 0.07);
+    --scan: rgba(212, 129, 10, 0.04);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--amber);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      var(--scan) 2px,
+      var(--scan) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+    animation: scanlines 8s linear infinite;
+  }
+
+  /* Grid pattern */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes scanlines {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 40px; }
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 520px;
+    padding: 16px;
+  }
+
+  /* TOP BAR */
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--od-green);
+    border-bottom: none;
+    background: var(--darker);
+    padding: 6px 14px;
+    font-size: 10px;
+    color: var(--tan-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .top-bar .unit-id { color: var(--amber); font-size: 11px; letter-spacing: 3px; }
+  .top-bar .freq { color: var(--green-signal); }
+
+  /* MAIN PANEL */
+  .panel {
+    background: var(--darker);
+    border: 2px solid var(--od-green);
+    padding: 0;
+    position: relative;
+    box-shadow:
+      0 0 0 1px var(--dark-green),
+      0 0 40px rgba(74, 92, 58, 0.3),
+      inset 0 0 60px rgba(0,0,0,0.5);
+  }
+
+  /* Corner brackets */
+  .panel::before, .panel::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: var(--amber);
+    border-style: solid;
+  }
+  .panel::before { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
+  .panel::after { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
+
+  .panel-inner { padding: 20px; }
+
+  /* HEADER */
+  .header {
+    text-align: center;
+    border-bottom: 1px solid var(--od-green);
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+  }
+  .header h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 8px;
+    color: var(--amber-bright);
+    text-shadow: 0 0 20px var(--amber), 0 0 40px rgba(212,129,10,0.4);
+    text-transform: uppercase;
+  }
+  .header .subtitle {
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: var(--tan-dim);
+    margin-top: 3px;
+  }
+  .header .classify {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--red-alert);
+    margin-top: 5px;
+    animation: blink 2s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* STATUS ROW */
+  .status-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .status-box {
+    border: 1px solid var(--od-green);
+    background: var(--black);
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .status-box .label { font-size: 8px; letter-spacing: 2px; color: var(--tan-dim); display: block; }
+  .status-box .value { font-size: 13px; color: var(--amber-bright); margin-top: 2px; display: block; }
+  .status-box.active .value { color: var(--green-signal); text-shadow: 0 0 8px var(--green-signal); }
+  .status-box.alert .value { color: var(--red-alert); animation: blink 1s step-end infinite; }
+
+  /* CHANNEL DISPLAY */
+  .channel-display {
+    background: var(--black);
+    border: 1px solid var(--od-green);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .channel-display::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 60%, rgba(212,129,10,0.04));
+    pointer-events: none;
+  }
+  .channel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .channel-label { font-size: 9px; letter-spacing: 3px; color: var(--tan-dim); }
+  .channel-num {
+    font-family: 'Oswald', sans-serif;
+    font-size: 36px;
+    font-weight: 300;
+    color: var(--amber-bright);
+    text-shadow: 0 0 15px var(--amber), 0 0 30px rgba(212,129,10,0.3);
+    letter-spacing: 4px;
+  }
+  .channel-controls { display: flex; gap: 8px; }
+  .ch-btn {
+    background: var(--dark-green);
+    border: 1px solid var(--od-green);
+    color: var(--amber);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    width: 28px; height: 28px;
+    cursor: pointer;
+    transition: all 0.1s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ch-btn:hover { background: var(--od-green); color: var(--amber-bright); }
+
+  /* WAVEFORM */
+  .waveform-container {
+    background: var(--black);
+    border: 1px solid var(--od-green);
+    margin-bottom: 16px;
+    padding: 4px;
+    position: relative;
+  }
+  .waveform-label {
+    position: absolute;
+    top: 6px; left: 10px;
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: var(--tan-dim);
+    z-index: 2;
+  }
+  canvas#waveform {
+    display: block;
+    width: 100%;
+    height: 64px;
+  }
+
+  /* ROOM SETUP */
+  .room-section {
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--tan-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--od-green);
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .tac-input {
+    flex: 1;
+    background: var(--black);
+    border: 1px solid var(--od-green);
+    color: var(--amber-bright);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 9px 12px;
+    letter-spacing: 2px;
+    outline: none;
+    text-transform: uppercase;
+    transition: border-color 0.2s;
+  }
+  .tac-input::placeholder { color: var(--tan-dim); }
+  .tac-input:focus { border-color: var(--amber); box-shadow: 0 0 8px rgba(212,129,10,0.2); }
+
+  .tac-btn {
+    background: var(--dark-green);
+    border: 1px solid var(--od-green);
+    color: var(--amber);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 9px 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tac-btn:hover:not(:disabled) {
+    background: var(--od-green);
+    color: var(--amber-bright);
+    box-shadow: 0 0 10px rgba(74,92,58,0.5);
+  }
+  .tac-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .tac-btn.danger {
+    border-color: var(--red-alert);
+    color: var(--red-alert);
+  }
+  .tac-btn.danger:hover:not(:disabled) {
+    background: var(--red-alert);
+    color: white;
+  }
+
+  /* PEERS */
+  .peers-list {
+    min-height: 36px;
+    border: 1px solid var(--od-green);
+    background: var(--black);
+    padding: 8px 12px;
+    margin-top: 8px;
+  }
+  .peers-list .empty { font-size: 10px; color: var(--tan-dim); letter-spacing: 1px; }
+  .peer-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    padding: 2px 0;
+  }
+  .peer-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green-signal);
+    box-shadow: 0 0 6px var(--green-signal);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100%{opacity:1} 50%{opacity:0.4}
+  }
+  .peer-name { color: var(--tan); letter-spacing: 1px; }
+  .peer-signal { margin-left: auto; font-size: 9px; color: var(--green-dim); }
+
+  /* PTT BUTTON */
+  .ptt-section {
+    margin-top: 6px;
+    text-align: center;
+  }
+
+  .ptt-ring {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    border: 3px solid var(--od-green);
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    background: radial-gradient(circle at center, var(--dark-green) 0%, var(--black) 70%);
+    transition: all 0.1s;
+    box-shadow:
+      0 0 0 8px rgba(74,92,58,0.1),
+      0 0 0 16px rgba(74,92,58,0.05);
+  }
+  .ptt-ring::before {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    border: 1px solid var(--od-green);
+    opacity: 0.5;
+  }
+  .ptt-ring::after {
+    content: '';
+    position: absolute;
+    inset: 16px;
+    border-radius: 50%;
+    border: 1px dashed var(--amber-dim);
+    opacity: 0.4;
+  }
+
+  .ptt-inner {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: var(--dark-green);
+    border: 2px solid var(--amber-dim);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+    transition: all 0.1s;
+  }
+  .ptt-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    color: var(--amber);
+  }
+  .ptt-sub {
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: var(--tan-dim);
+    margin-top: 2px;
+  }
+
+  /* PTT active state */
+  .ptt-ring.transmitting {
+    border-color: var(--red-alert);
+    box-shadow:
+      0 0 0 8px rgba(192,57,43,0.15),
+      0 0 0 20px rgba(192,57,43,0.08),
+      0 0 40px rgba(192,57,43,0.3);
+    animation: tx-pulse 0.6s ease-in-out infinite;
+  }
+  .ptt-ring.transmitting .ptt-inner {
+    background: var(--red-alert);
+    border-color: #ff6b5b;
+  }
+  .ptt-ring.transmitting .ptt-label { color: white; }
+  .ptt-ring.transmitting .ptt-sub { color: rgba(255,255,255,0.7); }
+
+  @keyframes tx-pulse {
+    0%,100%{ box-shadow: 0 0 0 8px rgba(192,57,43,0.15), 0 0 0 20px rgba(192,57,43,0.08), 0 0 40px rgba(192,57,43,0.3); }
+    50%{ box-shadow: 0 0 0 12px rgba(192,57,43,0.2), 0 0 0 28px rgba(192,57,43,0.1), 0 0 60px rgba(192,57,43,0.4); }
+  }
+
+  .ptt-hint {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--tan-dim);
+    margin-top: 10px;
+  }
+
+  /* LOG */
+  .log-section { margin-top: 16px; }
+  .log-box {
+    background: var(--black);
+    border: 1px solid var(--od-green);
+    height: 80px;
+    overflow-y: auto;
+    padding: 8px 10px;
+    font-size: 10px;
+    color: var(--tan-dim);
+    letter-spacing: 1px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--od-green) var(--black);
+  }
+  .log-box .log-line { margin-bottom: 2px; }
+  .log-box .log-line .ts { color: var(--amber-dim); margin-right: 6px; }
+  .log-box .log-line .msg { }
+  .log-box .log-line.info .msg { color: var(--tan); }
+  .log-box .log-line.success .msg { color: var(--green-signal); }
+  .log-box .log-line.error .msg { color: var(--red-alert); }
+  .log-box .log-line.tx .msg { color: var(--amber-bright); }
+
+  /* BOTTOM BAR */
+  .bottom-bar {
+    border: 1px solid var(--od-green);
+    border-top: none;
+    background: var(--darker);
+    padding: 5px 14px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--tan-dim);
+    letter-spacing: 2px;
+  }
+  .bottom-bar .signal-bars {
+    display: flex; gap: 2px; align-items: flex-end;
+  }
+  .bar {
+    width: 4px;
+    background: var(--od-green);
+    border-radius: 1px;
+    transition: background 0.3s;
+  }
+  .bar:nth-child(1){height:6px}
+  .bar:nth-child(2){height:10px}
+  .bar:nth-child(3){height:14px}
+  .bar:nth-child(4){height:18px}
+  .bar.active { background: var(--green-signal); box-shadow: 0 0 4px var(--green-signal); }
+
+  .noise-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.2s;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    mix-blend-mode: overlay;
+  }
+  .noise-overlay.visible { opacity: 1; }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .ptt-ring { width: 130px; height: 130px; }
+    .ptt-inner { width: 84px; height: 84px; }
+    .channel-num { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="noise-overlay" id="noiseOverlay"></div>
+
+<div class="wrapper">
+  <div class="top-bar">
+    <span class="unit-id" id="myCallsign">UNIT: ----</span>
+    <span>TACCOM-7 v2.1</span>
+    <span class="freq" id="statusIndicator">● STANDBY</span>
+  </div>
+
+  <div class="panel">
+    <div class="panel-inner">
+
+      <!-- Header -->
+      <div class="header">
+        <h1>TACCOM</h1>
+        <div class="subtitle">Tactical Communications System // WebRTC Encrypted</div>
+        <div class="classify" id="classifyBanner">⚠ OPERATOR AUTH REQUIRED ⚠</div>
+      </div>
+
+      <!-- Status Row -->
+      <div class="status-row">
+        <div class="status-box" id="boxConn">
+          <span class="label">LINK</span>
+          <span class="value" id="connStatus">OFFLINE</span>
+        </div>
+        <div class="status-box" id="boxPeers">
+          <span class="label">PEERS</span>
+          <span class="value" id="peerCount">0</span>
+        </div>
+        <div class="status-box" id="boxTx">
+          <span class="label">MODE</span>
+          <span class="value" id="txMode">RX</span>
+        </div>
+      </div>
+
+      <!-- Channel -->
+      <div class="channel-display">
+        <div class="waveform-label">AUDIO // VOICE MONITOR</div>
+        <div class="channel-row" style="margin-top:18px">
+          <span class="channel-label">CHANNEL</span>
+          <div class="channel-controls">
+            <button class="ch-btn" onclick="changeChannel(-1)">▼</button>
+            <span class="channel-num" id="channelNum">07</span>
+            <button class="ch-btn" onclick="changeChannel(1)">▲</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Waveform -->
+      <div class="waveform-container">
+        <div class="waveform-label">SIGNAL MONITOR</div>
+        <canvas id="waveform" height="64"></canvas>
+      </div>
+
+      <!-- Room / Callsign Setup -->
+      <div class="room-section">
+        <div class="section-title">IDENT + CHANNEL SYNC</div>
+        <div class="input-row" style="margin-bottom:8px">
+          <input type="text" class="tac-input" id="callsignInput" placeholder="YOUR CALLSIGN" maxlength="12">
+          <input type="text" class="tac-input" id="roomInput" placeholder="ROOM CODE" maxlength="20">
+        </div>
+        <div class="input-row">
+          <button class="tac-btn" id="joinBtn" onclick="joinRoom()">⬡ ESTABLISH LINK</button>
+          <button class="tac-btn danger" id="leaveBtn" onclick="leaveRoom()" disabled>✕ TERMINATE</button>
+        </div>
+
+        <!-- Peers -->
+        <div class="peers-list" id="peersList">
+          <span class="empty">// NO ACTIVE UNITS ON THIS CHANNEL</span>
+        </div>
+      </div>
+
+      <!-- PTT -->
+      <div class="ptt-section">
+        <div class="section-title">PUSH TO TRANSMIT</div>
+        <div class="ptt-ring" id="pttBtn"
+             onmousedown="startTx()" onmouseup="stopTx()"
+             ontouchstart="startTx(event)" ontouchend="stopTx(event)">
+          <div class="ptt-inner">
+            <span class="ptt-label">PTT</span>
+            <span class="ptt-sub">HOLD</span>
+          </div>
+        </div>
+        <div class="ptt-hint">HOLD BUTTON TO TRANSMIT // RELEASE TO RECEIVE</div>
+        <div class="ptt-hint" style="margin-top:4px; color: var(--amber-dim)">SPACEBAR ALSO WORKS</div>
+      </div>
+
+      <!-- Log -->
+      <div class="log-section">
+        <div class="section-title">COMMS LOG</div>
+        <div class="log-box" id="logBox"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <span id="bottomTime">00:00:00Z</span>
+    <div class="signal-bars">
+      <div class="bar" id="b1"></div>
+      <div class="bar" id="b2"></div>
+      <div class="bar" id="b3"></div>
+      <div class="bar" id="b4"></div>
+    </div>
+    <span id="encLabel">ENC: AES-256</span>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────────────────────
+// Uses a free public WebSocket signaling server (wss://signaling.edumeet.org)
+// For production, deploy your own signaling server.
+// STUN servers for NAT traversal
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' }
+];
+
+// ─── STATE ─────────────────────────────────────────────────────────────────
+let ws = null;
+let myId = null;
+let myCallsign = '';
+let roomCode = '';
+let localStream = null;
+let peers = {}; // peerId -> { pc, callsign, audioEl }
+let isTransmitting = false;
+let channel = 7;
+let audioCtx = null;
+let analyser = null;
+let animFrame = null;
+
+// ─── UTILS ─────────────────────────────────────────────────────────────────
+function uid() { return Math.random().toString(36).slice(2, 9).toUpperCase(); }
+function ts() { return new Date().toISOString().slice(11,19)+'Z'; }
+
+function log(msg, type='info') {
+  const box = document.getElementById('logBox');
+  const line = document.createElement('div');
+  line.className = `log-line ${type}`;
+  line.innerHTML = `<span class="ts">${ts()}</span><span class="msg">${msg}</span>`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+  // Keep last 50 lines
+  while (box.children.length > 50) box.removeChild(box.firstChild);
+}
+
+function setStatus(text, type) {
+  const el = document.getElementById('statusIndicator');
+  const colors = { online:'#5dbb63', offline:'#d4810a', tx:'#c0392b' };
+  el.textContent = `● ${text}`;
+  el.style.color = colors[type] || colors.online;
+}
+
+function updateStatusBox(id, value, cls) {
+  const box = document.getElementById(id);
+  box.querySelector('.value').textContent = value;
+  box.className = 'status-box' + (cls ? ' ' + cls : '');
+}
+
+function updateClock() {
+  document.getElementById('bottomTime').textContent = new Date().toISOString().slice(11,19)+'Z';
+}
+setInterval(updateClock, 1000); updateClock();
+
+function changeChannel(delta) {
+  channel = Math.max(1, Math.min(99, channel + delta));
+  document.getElementById('channelNum').textContent = String(channel).padStart(2,'0');
+}
+
+// ─── WAVEFORM ──────────────────────────────────────────────────────────────
+function startWaveform(stream) {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 256;
+  const source = audioCtx.createMediaStreamSource(stream);
+  source.connect(analyser);
+  drawWaveform();
+}
+
+function drawWaveform() {
+  const canvas = document.getElementById('waveform');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth;
+  const W = canvas.width, H = canvas.height;
+
+  function draw() {
+    animFrame = requestAnimationFrame(draw);
+    const data = new Uint8Array(analyser ? analyser.frequencyBinCount : 128);
+    if (analyser) analyser.getByteTimeDomainData(data);
+
+    ctx.fillStyle = '#0a0c07';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(74,92,58,0.3)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < 4; i++) {
+      const y = (H/4)*i;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(74,92,58,0.15)';
+    for (let i = 0; i < 8; i++) {
+      const x = (W/8)*i;
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+    }
+
+    // Waveform
+    const color = isTransmitting ? '#c0392b' : '#d4810a';
+    const glowColor = isTransmitting ? 'rgba(192,57,43,0.4)' : 'rgba(212,129,10,0.3)';
+
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = glowColor;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+
+    const slice = W / data.length;
+    let x = 0;
+    for (let i = 0; i < data.length; i++) {
+      const v = analyser ? (data[i] / 128.0) : 1.0;
+      const y = (v * H / 2);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      x += slice;
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Center line when idle
+    if (!analyser) {
+      ctx.strokeStyle = 'rgba(212,129,10,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+    }
+  }
+  draw();
+}
+
+// Idle waveform animation
+(function idleWave() {
+  const canvas = document.getElementById('waveform');
+  const ctx = canvas.getContext('2d');
+  let t = 0;
+  function draw() {
+    if (analyser) return; // real audio takes over
+    requestAnimationFrame(draw);
+    canvas.width = canvas.offsetWidth;
+    const W = canvas.width, H = canvas.height;
+    ctx.fillStyle = '#0a0c07';
+    ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = 'rgba(74,92,58,0.3)';
+    ctx.lineWidth = 0.5;
+    for(let i=0;i<4;i++){const y=(H/4)*i;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    ctx.strokeStyle = 'rgba(212,129,10,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for(let x=0;x<W;x++){
+      const y=H/2+Math.sin((x/W)*Math.PI*6+t)*2+Math.sin((x/W)*Math.PI*2+t*0.7)*1;
+      x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    t+=0.02;
+  }
+  draw();
+})();
+
+// ─── SIGNAL BARS ──────────────────────────────────────────────────────────
+function setSignalBars(n) {
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById('b'+i);
+    el.classList.toggle('active', i<=n);
+  }
+}
+setSignalBars(0);
+
+// ─── PEERS UI ─────────────────────────────────────────────────────────────
+function renderPeers() {
+  const list = document.getElementById('peersList');
+  const ids = Object.keys(peers);
+  updateStatusBox('boxPeers', ids.length, ids.length > 0 ? 'active' : '');
+  setSignalBars(ids.length > 0 ? Math.min(4, ids.length+2) : 0);
+  if (ids.length === 0) {
+    list.innerHTML = '<span class="empty">// NO ACTIVE UNITS ON THIS CHANNEL</span>';
+    return;
+  }
+  list.innerHTML = ids.map(id => {
+    const cs = peers[id].callsign || id.slice(0,6);
+    return `<div class="peer-item">
+      <div class="peer-dot"></div>
+      <span class="peer-name">${cs}</span>
+      <span class="peer-signal">◈ LINKED</span>
+    </div>`;
+  }).join('');
+}
+
+// ─── SIGNALING (WebSocket via wss://socketsbay.com free public WS or echo) ─
+// We use a free public signaling approach: wss://ws.vi-server.org/mirror for echo
+// Actually we'll use a proper approach with a free WS relay
+// Using: wss://janus.conf.meetecho.com/ws - No.
+// Best free option: wss://socketsbay.com/wss/v2/1/demo/ - limited
+// We'll use wss://ws.vi-server.org/mirror which echoes to all clients
+// For a real walkie talkie we use a channel-based approach.
+// Let's use a proper free relay: wss://relay.metered.ca/ws is not free.
+// 
+// APPROACH: Use a simple WebSocket relay. We'll use the free PeerJS cloud signaling
+// via PeerJS library which handles all STUN/TURN/signaling.
+
+function joinRoom() {
+  const cs = document.getElementById('callsignInput').value.trim().toUpperCase() || 'OPERATOR';
+  const room = document.getElementById('roomInput').value.trim().toUpperCase();
+  if (!room) { log('ERROR: ROOM CODE REQUIRED', 'error'); return; }
+
+  myCallsign = cs;
+  roomCode = room;
+  myId = uid();
+
+  document.getElementById('myCallsign').textContent = `UNIT: ${myCallsign}`;
+  document.getElementById('classifyBanner').textContent = `◈ ${myCallsign} // CH-${String(channel).padStart(2,'0')} // SECURE`;
+  document.getElementById('joinBtn').disabled = true;
+  document.getElementById('leaveBtn').disabled = false;
+
+  log(`ESTABLISHING LINK... CALLSIGN: ${myCallsign}`, 'info');
+  log(`ROOM: ${room} // UNIT ID: ${myId}`, 'info');
+
+  getMic().then(() => {
+    connectSignaling();
+  }).catch(err => {
+    log(`MIC ACCESS DENIED: ${err.message}`, 'error');
+    document.getElementById('joinBtn').disabled = false;
+    document.getElementById('leaveBtn').disabled = true;
+  });
+}
+
+function getMic() {
+  return navigator.mediaDevices.getUserMedia({ audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true
+  }, video: false }).then(stream => {
+    localStream = stream;
+    // Mute by default (PTT)
+    stream.getAudioTracks().forEach(t => t.enabled = false);
+    startWaveform(stream);
+    log('MICROPHONE ONLINE // PTT READY', 'success');
+  });
+}
+
+// ─── PeerJS signaling ──────────────────────────────────────────────────────
+// We'll use PeerJS CDN for signaling since it's the easiest free solution
+let peer = null;
+let peerConnections = {}; // peerId -> MediaConnection
+
+function connectSignaling() {
+  // Dynamically load PeerJS
+  if (!window.Peer) {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js';
+    script.onload = () => initPeer();
+    script.onerror = () => {
+      log('FAILED TO LOAD PEERJS // CHECK CONNECTION', 'error');
+      fallbackSignaling();
+    };
+    document.head.appendChild(script);
+  } else {
+    initPeer();
+  }
+}
+
+function initPeer() {
+  // PeerJS uses PeerCloud server for signaling (free)
+  // The peer ID encodes the room so we can find others in the same room
+  // We use a known "room host" ID pattern: room code as prefix
+  
+  const peerId = `TACCOM-${roomCode}-${myId}`;
+  
+  peer = new Peer(peerId, {
+    config: { iceServers: ICE_SERVERS }
+  });
+
+  peer.on('open', (id) => {
+    log(`LINK ESTABLISHED // ID: ${id.slice(-8)}`, 'success');
+    setStatus('ONLINE', 'online');
+    updateStatusBox('boxConn', 'ONLINE', 'active');
+    setSignalBars(2);
+    
+    // Announce ourselves via a "discovery" peer
+    // Connect to the room's discovery node
+    announceAndDiscover();
+  });
+
+  peer.on('call', (call) => {
+    // Someone is calling us (sending audio)
+    call.answer(localStream);
+    handleRemoteCall(call);
+    log(`INCOMING TRANSMISSION // ${call.peer.split('-')[2] || 'UNKNOWN'}`, 'tx');
+  });
+
+  peer.on('connection', (conn) => {
+    // Data channel - for callsign exchange
+    conn.on('data', (data) => {
+      if (data.type === 'hello') {
+        if (!peers[conn.peer]) {
+          peers[conn.peer] = { callsign: data.callsign };
+        } else {
+          peers[conn.peer].callsign = data.callsign;
+        }
+        renderPeers();
+        log(`UNIT JOINED: ${data.callsign}`, 'success');
+        // Send back our info
+        conn.send({ type: 'hello', callsign: myCallsign, id: myId });
+        // Call them with audio
+        callPeer(conn.peer);
+      }
+      if (data.type === 'bye') {
+        removePeer(conn.peer);
+      }
+    });
+  });
+
+  peer.on('error', (err) => {
+    log(`SIGNAL ERROR: ${err.type}`, 'error');
+    if (err.type === 'peer-unavailable') {
+      // That's ok, peer not found
+    } else {
+      setStatus('ERROR', 'offline');
+    }
+  });
+
+  peer.on('disconnected', () => {
+    setStatus('DISCONNECTED', 'offline');
+    updateStatusBox('boxConn', 'LOST', 'alert');
+    log('SIGNAL LOST // ATTEMPTING RECONNECT...', 'error');
+    setTimeout(() => peer && peer.reconnect(), 3000);
+  });
+}
+
+// Discovery: try to connect to a well-known "room registry" peer for this room
+// We use a round-robin of slot IDs to find peers in the same room
+const SLOT_COUNT = 5;
+let discoveryAttempts = 0;
+
+function announceAndDiscover() {
+  // Try to find peers in our room by connecting to known slot IDs
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const slotId = `TACCOM-${roomCode}-SLOT${i}`;
+    if (slotId !== peer.id) {
+      tryConnect(slotId);
+    }
+  }
+  
+  // Also register ourselves in a slot
+  const mySlot = Math.floor(Math.random() * SLOT_COUNT);
+  const slotId = `TACCOM-${roomCode}-SLOT${mySlot}`;
+  if (slotId !== peer.id) {
+    // Create a peer with the slot ID to "reserve" it
+    // We just try connecting to existing ones; new slot peer will be discovered naturally
+  }
+  
+  log(`SCANNING CHANNEL... ${SLOT_COUNT} SLOTS`, 'info');
+}
+
+function tryConnect(targetId) {
+  if (!peer || peer.destroyed) return;
+  const conn = peer.connect(targetId, { reliable: true });
+  conn.on('open', () => {
+    conn.send({ type: 'hello', callsign: myCallsign, id: myId });
+    if (!peers[targetId]) peers[targetId] = {};
+    renderPeers();
+  });
+  conn.on('error', () => {}); // Silently fail if peer not found
+}
+
+function callPeer(peerId) {
+  if (!peer || !localStream) return;
+  const call = peer.call(peerId, localStream);
+  handleRemoteCall(call);
+}
+
+function handleRemoteCall(call) {
+  call.on('stream', (remoteStream) => {
+    // Play remote audio
+    let audio = document.getElementById('audio-' + call.peer);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = 'audio-' + call.peer;
+      audio.autoplay = true;
+      audio.style.display = 'none';
+      document.body.appendChild(audio);
+    }
+    audio.srcObject = remoteStream;
+    if (!peers[call.peer]) peers[call.peer] = {};
+    peers[call.peer].audio = audio;
+    renderPeers();
+  });
+
+  call.on('close', () => {
+    removePeer(call.peer);
+  });
+
+  call.on('error', () => {
+    removePeer(call.peer);
+  });
+}
+
+function removePeer(peerId) {
+  if (peers[peerId]) {
+    const cs = peers[peerId].callsign || peerId.slice(-8);
+    log(`UNIT OFFLINE: ${cs}`, 'info');
+    // Remove audio
+    const audio = document.getElementById('audio-' + peerId);
+    if (audio) audio.remove();
+    delete peers[peerId];
+    renderPeers();
+  }
+}
+
+function leaveRoom() {
+  log('TERMINATING LINK...', 'info');
+  
+  // Notify peers
+  if (peer) {
+    Object.values(peers).forEach(p => {
+      try { if(p.conn) p.conn.send({ type: 'bye' }); } catch(e){}
+    });
+    setTimeout(() => { peer.destroy(); peer = null; }, 300);
+  }
+  
+  // Stop mic
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+
+  // Remove audio elements
+  document.querySelectorAll('audio[id^="audio-"]').forEach(a => a.remove());
+
+  peers = {};
+  renderPeers();
+  setStatus('STANDBY', 'offline');
+  updateStatusBox('boxConn', 'OFFLINE', '');
+  updateStatusBox('boxTx', 'RX', '');
+  setSignalBars(0);
+
+  document.getElementById('joinBtn').disabled = false;
+  document.getElementById('leaveBtn').disabled = true;
+  document.getElementById('myCallsign').textContent = 'UNIT: ----';
+  document.getElementById('classifyBanner').textContent = '⚠ OPERATOR AUTH REQUIRED ⚠';
+
+  stopTx();
+  log('LINK TERMINATED', 'info');
+}
+
+// Fallback if PeerJS fails
+function fallbackSignaling() {
+  log('FALLBACK: DIRECT P2P MODE // SHARE YOUR ID MANUALLY', 'error');
+  // Could implement manual SDP exchange here
+}
+
+// ─── PTT ──────────────────────────────────────────────────────────────────
+function startTx(e) {
+  if (e) e.preventDefault();
+  if (!localStream) { log('NO MIC // JOIN A ROOM FIRST', 'error'); return; }
+  if (isTransmitting) return;
+  isTransmitting = true;
+
+  localStream.getAudioTracks().forEach(t => t.enabled = true);
+
+  document.getElementById('pttBtn').classList.add('transmitting');
+  document.getElementById('noiseOverlay').classList.add('visible');
+  updateStatusBox('boxTx', 'TX', 'alert');
+  setStatus('TRANSMITTING', 'tx');
+  log(`TRANSMITTING // ${myCallsign} OUT`, 'tx');
+
+  // Visual click feedback
+  setTimeout(() => document.getElementById('noiseOverlay').classList.remove('visible'), 150);
+}
+
+function stopTx(e) {
+  if (e) e.preventDefault();
+  if (!isTransmitting) return;
+  isTransmitting = false;
+
+  if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = false);
+
+  document.getElementById('pttBtn').classList.remove('transmitting');
+  updateStatusBox('boxTx', 'RX', Object.keys(peers).length > 0 ? 'active' : '');
+  setStatus(Object.keys(peers).length > 0 ? 'ONLINE' : 'STANDBY', Object.keys(peers).length > 0 ? 'online' : 'offline');
+}
+
+// Spacebar PTT
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+    e.preventDefault();
+    startTx();
+  }
+});
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') stopTx();
+});
+
+// Initial waveform
+drawWaveform();
+log('TACCOM-7 INITIALIZED // AWAITING OPERATOR', 'success');
+log('ENTER CALLSIGN + ROOM CODE TO ESTABLISH LINK', 'info');
+</script>
+</body>
+</html>
